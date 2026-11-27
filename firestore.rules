@@ -1,0 +1,93 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // بيانات المخالفات: قراءة للجميع، كتابة للمشرف فقط
+    match /sections/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // الحضور اليومي والأجهزة
+    match /presence/{id} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if request.auth != null;
+    }
+
+    // بلاغات المستخدمين — إنشاء للجميع، قراءة/تعديل للمشرف
+    // (get لكل مستخدم عبر المعرّف العشوائي ليرى حالة بلاغه وردّ المشرف؛ list/update للمشرف فقط)
+    match /inbox/{id} {
+      allow create: if true;
+      allow get: if true;
+      allow list, update: if request.auth != null;
+    }
+    match /reports/{id} {
+      allow create: if true;
+      allow get: if true;
+      allow list, update: if request.auth != null;
+    }
+
+    // سجل العمليات — للمشرف
+    match /ops/{id} {
+      allow read, write: if request.auth != null;
+    }
+
+    // جلسة المشرف الواحدة — للمشرف فقط
+    match /admin/{id} {
+      allow read, write: if request.auth != null;
+    }
+
+    // الأجهزة المحظورة — قراءة للجميع (لفحص الحظر)، كتابة/حذف للمشرف فقط
+    match /banned/{id} {
+      allow get, list: if true;
+      allow create, update, delete: if request.auth != null;
+    }
+
+    // سجل قفل الهوية: مستقل عن معرّف الجهاز، مفتاحه هاش (32 خانة hex) لبيانات الملف الشخصي.
+    // إنشاء مرة واحدة فقط؛ لا تعديل ولا حذف إلا للمشرف. القراءة بالمفتاح فقط (get)، والقائمة للمشرف.
+    match /profileLocks/{id} {
+      allow get: if true;
+      allow list: if request.auth != null;
+      allow create: if id.matches('[0-9a-f]{32}')
+        && request.resource.data.keys().hasOnly(['name','age','wil','dev','at'])
+        && request.resource.data.dev is string && request.resource.data.dev.matches('[0-9]{8}')
+        && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 60
+        && request.resource.data.age is int && request.resource.data.age >= 18 && request.resource.data.age <= 80
+        && request.resource.data.wil is string && request.resource.data.wil.size() > 0;
+      allow update, delete: if request.auth != null;
+    }
+
+    // الملف الشخصي: مربوط بمعرّف الجهاز (8 أرقام) — إنشاء مرة واحدة فقط، ولا تعديل/حذف إلا للمشرف.
+    // إن وُجد الحقل lk (هاش القفل) فيجب أن يوجد سجل القفل نفسه وتتطابق بياناته حرفياً مع الملف،
+    // فلا يمكن ربط جهاز جديد بهوية مقفلة ببيانات مختلفة عنها.
+    match /profiles/{id} {
+      allow get: if true;
+      allow list: if request.auth != null;
+      allow create: if id.matches('[0-9]{8}')
+        && request.resource.data.keys().hasOnly(['name','age','wil','dev','at','lk'])
+        && request.resource.data.dev == id
+        && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 60
+        && request.resource.data.age is int && request.resource.data.age >= 18 && request.resource.data.age <= 80
+        && request.resource.data.wil is string && request.resource.data.wil.size() > 0
+        && (!('lk' in request.resource.data)
+            || (request.resource.data.lk is string
+                && request.resource.data.lk.matches('[0-9a-f]{32}')
+                && exists(/databases/$(database)/documents/profileLocks/$(request.resource.data.lk))
+                && get(/databases/$(database)/documents/profileLocks/$(request.resource.data.lk)).data.name == request.resource.data.name
+                && get(/databases/$(database)/documents/profileLocks/$(request.resource.data.lk)).data.age == request.resource.data.age
+                && get(/databases/$(database)/documents/profileLocks/$(request.resource.data.lk)).data.wil == request.resource.data.wil));
+      allow update, delete: if request.auth != null;
+    }
+
+    // توكنات الإشعارات — الكتابة للجميع، القراءة للمشرف
+    match /fcmTokens/{id} {
+      allow create, update: if true;
+      allow read: if request.auth != null;
+    }
+    match /prefs/{id} {
+      allow create, update: if true;
+      allow read: if true;
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "name": "قانون تنسيق النقل والمرور",
+  "short_name": "قانون تنسيق النقل والمرور",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b1a14",
+  "theme_color": "#16221e",
+  "icons": [
+    {
+      "src": "icons/blank-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/blank-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "id": "./index.html",
+  "description": "مرجع المخالفات والعقوبات والإجراءات في قانون تنسيق النقل والمرور مع بحث سريع.",
+  "categories": [
+    "reference",
+    "productivity"
+  ]
+}

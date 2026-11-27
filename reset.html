@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#16221e">
+<title>إعادة تعيين التطبيق</title>
+<style>
+body{margin:0;font-family:system-ui,sans-serif;background:#16221e;color:#eee8d8;display:grid;place-items:center;min-height:100vh;padding:20px;text-align:center}
+.box{max-width:360px;background:#1e2f29;border:1px solid #36493f;border-radius:16px;padding:24px}
+h1{font-size:1.2rem;margin:0 0 12px;color:#c5a059}
+p{color:#a9b6af;line-height:1.6;font-size:.95rem}
+button{width:100%;margin-top:14px;padding:14px;border:0;border-radius:10px;background:#c5a059;color:#16221e;font:inherit;font-weight:700;cursor:pointer}
+#log{margin-top:14px;text-align:start;font-size:.8rem;color:#a9b6af;white-space:pre-wrap;min-height:4em}
+.ok{color:#2ecc71}.err{color:#e74c3c}
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>إعادة تعيين كاملة</h1>
+  <p>هذه الصفحة تمسح كاش التطبيق والـ Service Worker وبيانات Firestore المحلية، ثم تحمّل النسخة الجديدة من السيرفر.</p>
+  <button id="go">امسح وحدّث الآن</button>
+  <div id="log"></div>
+</div>
+<script>
+const log=(m,c)=>{const el=document.getElementById('log');el.innerHTML+=`<div class="${c||''}">${m}</div>`};
+document.getElementById('go').onclick=async()=>{
+  const btn=document.getElementById('go');btn.disabled=true;btn.textContent='جارٍ المسح…';
+  try{
+    if('caches' in window){
+      const keys=await caches.keys();
+      await Promise.all(keys.map(k=>caches.delete(k)));
+      log('✓ تم مسح Cache Storage ('+keys.length+')','ok');
+    }
+    if('serviceWorker' in navigator){
+      const regs=await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r=>r.unregister()));
+      log('✓ تم إلغاء Service Workers ('+regs.length+')','ok');
+    }
+    // localStorage app data
+    ['tc2026_cache_v2','tc_docs'].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}});
+    log('✓ تم مسح بيانات المخالفات المحلية','ok');
+    // IndexedDB
+    if(indexedDB.databases){
+      const dbs=await indexedDB.databases();
+      for(const d of (dbs||[])){if(d.name==='tcid_store')continue;
+        await new Promise(res=>{const r=indexedDB.deleteDatabase(d.name);r.onsuccess=r.onerror=r.onblocked=()=>res()});
+      }
+      log('✓ تم مسح IndexedDB ('+(dbs||[]).length+')','ok');
+    }else{
+      ['firebase-heartbeat-database','firebase-installations-database'].forEach(n=>{try{indexedDB.deleteDatabase(n)}catch(e){}});
+      log('✓ طلب مسح IndexedDB (وضع التوافق)','ok');
+    }
+    log('→ إعادة التحميل…','ok');
+    setTimeout(()=>{location.replace('./index.html?_='+Date.now())},500);
+  }catch(e){
+    log('خطأ: '+(e&&e.message||e),'err');
+    btn.disabled=false;btn.textContent='أعد المحاولة';
+  }
+};
+</script>
+</body>
+</html>
